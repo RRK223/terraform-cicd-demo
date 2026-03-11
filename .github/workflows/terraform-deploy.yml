@@ -17,20 +17,44 @@ jobs:
     
     steps:
     - name: Checkout
-      uses: actions/checkout@v4  # Also update checkout to v4
+      uses: actions/checkout@v4
 
     - name: Setup Terraform
       uses: hashicorp/setup-terraform@v3
       with:
         terraform_version: ${{ env.TF_VERSION }}
 
+    # Method 1: Try configure-aws-credentials first
     - name: Configure AWS Credentials
+      id: aws-config
+      continue-on-error: true  # Don't fail if this method doesn't work
       uses: aws-actions/configure-aws-credentials@v4
       with:
         aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
         aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
         aws-session-token: ${{ secrets.AWS_SESSION_TOKEN }}
         aws-region: ${{ env.AWS_REGION }}
+
+    # Method 2: Fallback to direct environment variables
+    - name: Set AWS Credentials (Fallback)
+      if: steps.aws-config.outcome == 'failure'
+      run: |
+        echo "Using fallback credential method"
+        echo "AWS_ACCESS_KEY_ID=${{ secrets.AWS_ACCESS_KEY_ID }}" >> $GITHUB_ENV
+        echo "AWS_SECRET_ACCESS_KEY=${{ secrets.AWS_SECRET_ACCESS_KEY }}" >> $GITHUB_ENV
+        echo "AWS_SESSION_TOKEN=${{ secrets.AWS_SESSION_TOKEN }}" >> $GITHUB_ENV
+        echo "AWS_DEFAULT_REGION=${{ env.AWS_REGION }}" >> $GITHUB_ENV
+
+    - name: Verify AWS Credentials
+      run: |
+        echo "Verifying AWS credentials..."
+        if aws sts get-caller-identity &>/dev/null; then
+          echo "✅ Credentials work!"
+          aws sts get-caller-identity --query 'Arn' --output text
+        else
+          echo "❌ Credentials failed"
+          exit 1
+        fi
 
     - name: Terraform Init
       run: terraform init
@@ -42,7 +66,6 @@ jobs:
     - name: Terraform Plan
       id: plan
       run: terraform plan -no-color -input=false
-      continue-on-error: true
 
     - name: Comment Plan on PR
       if: github.event_name == 'pull_request'
@@ -72,10 +95,8 @@ jobs:
 
     - name: Upload Terraform State
       if: github.ref == 'refs/heads/main' && github.event_name == 'push'
-      uses: actions/upload-artifact@v4  # UPDATED to v4
+      uses: actions/upload-artifact@v4
       with:
         name: terraform-state
         path: terraform.tfstate
         retention-days: 7
-        if-no-files-found: warn  # New in v4
-        compression-level: 6      # New in v4 (optional)
