@@ -9,15 +9,9 @@ terraform {
   }
 }
 
-# Configure AWS Provider - explicitly use environment variables
+# Configure AWS Provider
 provider "aws" {
   region = var.aws_region
-
-  # These will be picked up from environment variables
-  # No need to hardcode anything here
-
-  # Optional: Add retry logic for transient errors
-  max_retries = 3
 }
 
 # Data source to get default VPC
@@ -83,8 +77,7 @@ resource "aws_instance" "app_server" {
   ami                    = data.aws_ami.amazon_linux_2023.id
   instance_type          = var.instance_type
   vpc_security_group_ids = [aws_security_group.app_sg.id]
-
-  # Use user data to install Docker and run app
+  
   user_data = <<-EOF
     #!/bin/bash
     set -ex
@@ -158,10 +151,4 @@ output "instance_public_ip" {
 output "app_url" {
   description = "URL to access the application"
   value       = "http://${aws_instance.app_server.public_ip}"
-}
-
-# Optional: Output the AMI ID used
-output "ami_used" {
-  description = "AMI ID used for the instance"
-  value       = data.aws_ami.amazon_linux_2023.id
 }
