@@ -6,6 +6,8 @@ on:
       - main  # This runs every time you push to the main branch
   pull_request:
     types: [opened, synchronize, reopened]
+env:
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
 
 jobs:
   sonarqube-check:
