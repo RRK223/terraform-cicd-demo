@@ -1,0 +1,23 @@
+name: SonarQube Analysis
+
+on:
+  push:
+    branches:
+      - main  # This runs every time you push to the main branch
+  pull_request:
+    types: [opened, synchronize, reopened]
+
+jobs:
+  sonarqube-check:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0  # Important for SonarQube to see code history
+
+      - name: Official SonarQube Scan
+        uses: SonarSource/sonarqube-scan-action@v2.0.2
+        env:
+          SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
+          SONAR_HOST_URL: ${{ secrets.SONAR_HOST_URL }}
