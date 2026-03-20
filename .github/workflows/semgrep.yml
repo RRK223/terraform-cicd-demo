@@ -1,0 +1,21 @@
+name: Universal Security Scan
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  semgrep:
+    runs-on: ubuntu-latest
+    container:
+      image: returntocorp/semgrep # Official Semgrep image
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Run Semgrep
+        run: semgrep ci
+        env:
+          # This uses the standard community security rules (OWASP Top 10, etc.)
+          SEMGREP_RULES: p/default p/security-audit p/javascript p/python p/react
