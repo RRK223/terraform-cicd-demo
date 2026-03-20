@@ -1,25 +1,41 @@
-name: SonarQube Analysis
+name: Security and Quality Scan
 
 on:
   push:
-    branches:
-      - main  # This runs every time you push to the main branch
+    branches: [main]
   pull_request:
-    types: [opened, synchronize, reopened]
-env:
-  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
 
 jobs:
-  sonarqube-check:
+  security_scan:
+    name: Universal SAST (Semgrep)
+    runs-on: ubuntu-latest
+    # Explicitly opting into Node 24 for this workflow
+    env:
+      FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
+    
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v6 # <--- Updated to v6 (Node 24 support)
+
+      - name: Run Semgrep (Universal SAST)
+        run: |
+          docker run --rm -v "${{ github.workspace }}:/src" semgrep/semgrep semgrep ci
+        env:
+          # Scans Python, JS, React, Go, etc. automatically
+          SEMGREP_RULES: p/default p/security-audit p/javascript p/python p/react
+
+  sonarqube_scan:
+    name: Code Quality (SonarQube)
+    needs: security_scan
     runs-on: ubuntu-latest
     steps:
       - name: Checkout Code
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
         with:
-          fetch-depth: 0  # Important for SonarQube to see code history
+          fetch-depth: 0
 
-      - name: Official SonarQube Scan
-        uses: SonarSource/sonarqube-scan-action@v2.0.2
+      - name: SonarQube Analysis
+        uses: SonarSource/sonarqube-scan-action@v4 # <--- Use v4+ for Node 24 support
         env:
           SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
           SONAR_HOST_URL: ${{ secrets.SONAR_HOST_URL }}
